@@ -38,32 +38,28 @@ void echo_to(const char *file, const char *data)
   FILE *fp = fopen(file, "w");
   int res;
   if (fp == NULL) {
-    printf("Failed to open file: '%s'\n", file);
+    fprintf(stderr, "Failed to open file: '%s'\n", file);
     return;
   }
   res = fputs(data, fp);
   if (res == EOF) {
-    printf("Failed writing to: '%s'\n", file);
+    fprintf(stderr, "Failed writing to: '%s'\n", file);
   }
   fclose(fp);
 }
 
 // Allocate and open a pipe to each cpu
-void get_pipe_per_cpu(FILE **pipes, int ncpus, fd_set *fds)
+void get_pipe_per_cpu(FILE **pipes, int ncpus)
 {
   int i;
   char path[128];
-
-  FD_ZERO(fds);
   
   for (i=0; i<ncpus; i++) {
     sprintf(path, "per_cpu/cpu%d/trace_pipe", i);
-    pipes[i] = (FILE *)malloc(sizeof(FILE *));
     pipes[i] = fopen(path, "r");
     if (!pipes[i]) {
       fprintf(stderr, "Failed to open %s\n", path);
     }
-    FD_SET(fileno(pipes[i]), fds);
   }
 }
 
@@ -84,21 +80,23 @@ void *read_pipe(void *pipe)
 {
   char buf[BUF_SIZE];
   // Loop until the main thread kills us
-  while (!exiting) {
+  while (1) {
     fgets(buf, BUF_SIZE, (FILE *)pipe);
-    printf("%s", buf);
+    if (!exiting) {
+      fprintf(stderr, "%s", buf);
+    } else {
+      break;
+    }
   }
 }
 
 int main(int argc, char *argv[])
 {
   const char *tracefp = "/sys/kernel/debug/tracing";
-  FILE **trace_pipes = NULL;
-  fd_set tpfds, readfds;
-  char buf[BUF_SIZE];
   int ncpus;
+  FILE **trace_pipes = NULL;
+  pthread_t *threads = NULL;
   int i;
-  pthread_t *threads;
 
   ncpus = get_nprocs();
   trace_pipes = (FILE **)malloc(sizeof(FILE *) * ncpus);
@@ -119,10 +117,10 @@ int main(int argc, char *argv[])
     echo_to("set_event_pid", "");
   }
 
-  echo_to("tracing_on", "1");
   echo_to("trace", "");
+  echo_to("tracing_on", "1");
 
-  get_pipe_per_cpu(trace_pipes, ncpus, &tpfds);
+  get_pipe_per_cpu(trace_pipes, ncpus);
   
   // Spawn threads
   for (i = 0; i < ncpus; i++) {
