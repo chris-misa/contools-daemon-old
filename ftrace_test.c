@@ -92,7 +92,13 @@ struct trace_event *get_trace_event(char *str)
   memcpy(name_buf, str, name_len);   
   name_buf[name_len] = '\0';
 
-  fprintf(stderr, "event name: %s\n\n", name_buf);
+  fprintf(stderr, "event name: %s, ", name_buf);
+
+  if (*end == '(') {
+    fprintf(stderr, "entering\n");
+  } else {
+    fprintf(stderr, "exiting\n\n");
+  }
 
   return evt;
 }
@@ -132,7 +138,6 @@ int main(int argc, char *argv[])
   
   while (1) {
     fgets(buf, READ_BUF_SIZE, trace_pipe);
-    fprintf(stderr, "Read: %s\n", buf);
     get_trace_event(buf);
   }
 
