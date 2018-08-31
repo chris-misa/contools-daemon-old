@@ -4,24 +4,31 @@
 #include <signal.h>
 #include <sys/sysinfo.h>
 #include <pthread.h>
+#include <stdint.h>
 
-/*******************************************
-
-This seems to work fine for text-based, per cpu
-
-For raw files we need to have a better reading
-strategy: fgets reads till eol which won't work
-arbitrary reads will block till their buffer fills
-
-We need either an event delimiter character hooked up
-into something like fgets or to know the exact size of
-each event ahead of time or non-blocking reads or something. . .
-
-*******************************************/
-
-#define BUF_SIZE 1000
+#define BUF_SIZE 64
 
 static int exiting = 0;
+
+// Structs for parsing raw trace data
+struct page_header {
+  uint64_t timestamp;
+  uint64_t commit;
+  uint8_t  overwrite;
+  char * data;
+};
+
+struct entry_header {
+  uint32_t type_len_time_delta;
+  uint32_t array;
+};
+  
+struct trace_common {
+  uint16_t common_type;
+  uint8_t  common_flags;
+  uint8_t  common_preempt_count;
+  uint32_t common_pid;
+};
 
 void usage()
 {
@@ -38,12 +45,12 @@ void echo_to(const char *file, const char *data)
   FILE *fp = fopen(file, "w");
   int res;
   if (fp == NULL) {
-    fprintf(stderr, "Failed to open file: '%s'\n", file);
+    fprintf(stderr, "Failed to open file '%s' for writing\n", file);
     return;
   }
   res = fputs(data, fp);
   if (res == EOF) {
-    fprintf(stderr, "Failed writing to: '%s'\n", file);
+    fprintf(stderr, "Failed writing to '%s'\n", file);
   }
   fclose(fp);
 }
@@ -75,15 +82,30 @@ void release_pipe_per_cpu(FILE **pipes, int ncpus)
   }
 }
 
+void print_bytes(unsigned char *bytes, int nbytes)
+{
+  int i;
+  for (i=0; i<nbytes; i++) {
+    printf("%X ", bytes[i]);
+    if (!((i+1) % 16)) {
+      printf("\n");
+    }
+  }
+}
+
 // Pipe reading thread entrypoint
 void *read_pipe(void *pipe)
 {
-  char buf[BUF_SIZE];
+  unsigned char buf[BUF_SIZE];
+  size_t nbytes;
+  int i;
+
   // Loop until the main thread kills us
   while (1) {
-    fgets(buf, BUF_SIZE, (FILE *)pipe);
+    nbytes = fread(buf, 1, BUF_SIZE, (FILE *)pipe);
     if (!exiting) {
-      fprintf(stderr, "%s", buf);
+      fprintf(stderr, "read %lu bytes\n", nbytes);
+      print_bytes(buf, nbytes);
     } else {
       break;
     }
