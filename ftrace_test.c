@@ -2,13 +2,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 #define READ_BUF_SIZE 256
 #define NAME_BUF_SIZE 64
 
+static volatile int running = 1;
+
 void usage()
 {
   printf("ftrace_test pid\n");
+}
+
+void do_exit()
+{
+  running = 0;
 }
 
 // Simply write into the given file and close
@@ -44,15 +52,14 @@ struct trace_event {
   enum event_types type;
 };
 
-struct trace_event *get_trace_event(char *str)
+// Parse a string read from pipe into trace_event struct
+void parse_trace_event(char *str, struct trace_event *evt)
 {
-  struct trace_event *evt;
   int dot_count = 0;
   char *end = NULL;
   int name_len = 0;
   char name_buf[NAME_BUF_SIZE];
   
-  evt = (struct trace_event *)malloc(sizeof(struct trace_event));
   evt->ts.tv_sec = 0;
   evt->ts.tv_usec = 0; 
   evt->type = EVENT_TYPE_NONE;
@@ -67,16 +74,11 @@ struct trace_event *get_trace_event(char *str)
     str++;
   } 
 
-  fprintf(stderr, "Found dots, ");
-
   // Get seconds and micro seconds
   evt->ts.tv_sec = strtol(str, &end, 10);
   str = end + 1; // skip the decimal point
   evt->ts.tv_usec = strtol(str, &end, 10);
   str = end + 6; // skip the colon, space, and 'sys_' prefix
-
-  fprintf(stderr, "timestamp: %lu.%06lu, ", evt->ts.tv_sec,
-                                              evt->ts.tv_usec);
 
   // get the event type string
   end = str;
@@ -92,58 +94,102 @@ struct trace_event *get_trace_event(char *str)
   memcpy(name_buf, str, name_len);   
   name_buf[name_len] = '\0';
 
-  fprintf(stderr, "event name: %s, ", name_buf);
-
   if (*end == '(') {
-    fprintf(stderr, "entering\n");
+    // Entering a syscall, figure out which
+    if (!strcmp(name_buf, "sendto")) {
+      evt->type = EVENT_TYPE_ENTER_SENDTO;
+    } else if (!strcmp(name_buf, "recvmsg")) {
+      evt->type = EVENT_TYPE_ENTER_RECVMSG;
+    }
   } else {
-    fprintf(stderr, "exiting\n\n");
+    // Exiting a syscall, figure out which
+    if (!strcmp(name_buf, "sendto")) {
+      evt->type = EVENT_TYPE_EXIT_SENDTO;
+    } else if (!strcmp(name_buf, "recvmsg")) {
+      evt->type = EVENT_TYPE_EXIT_RECVMSG;
+    }
   }
-
-  return evt;
 }
 
-void free_trace_event(struct trace_event *evt)
+FILE *get_trace_pipe(const char *debug_fs_path, const char *pid)
 {
-  free(evt);
+  chdir(debug_fs_path);
+  echo_to("current_tracer", "nop");
+  echo_to("set_event", "syscalls:sys_enter_sendto syscalls:sys_exit_sendto syscalls:sys_enter_recvmsg syscalls:sys_exit_recvmsg");
+  echo_to("set_event_pid", pid);
+  echo_to("trace_clock","global");
+  echo_to("tracing_on", "1");
+
+  return fopen("trace_pipe","r");
 }
 
+void release_trace_pipe(FILE *tp, const char *debug_fs_path)
+{
+  fclose(tp);
+  chdir(debug_fs_path);
+  echo_to("tracing_on", "0");
+  echo_to("set_event_pid", "");
+  echo_to("set_event", "");
+}
 
+void get_trace_event(FILE *tp, struct trace_event *evt)
+{
+  char buf[READ_BUF_SIZE];
+  fgets(buf, READ_BUF_SIZE, tp);
+  parse_trace_event(buf, evt);
+}
 
 int main(int argc, char *argv[])
 {
   const char *tracefp = "/sys/kernel/debug/tracing";
   FILE *trace_pipe;
-  char buf[READ_BUF_SIZE];
-  int pid;
+  struct trace_event evt;
 
   if (argc != 2) {
     usage();
     exit(1);
   }
 
-  chdir(tracefp);
-  echo_to("current_tracer", "nop");
-  echo_to("set_event", "syscalls:sys_enter_sendto syscalls:sys_exit_sendto syscalls:sys_enter_recvmsg syscalls:sys_exit_recvmsg");
-  echo_to("set_event_pid", argv[1]);
-  echo_to("trace_clock","global");
-  echo_to("tracing_on", "1");
+  // Set interupt handler
+  signal(SIGINT, do_exit);
 
-  trace_pipe = fopen("trace_pipe","r");
-
+  // Set up tracing
+  trace_pipe = get_trace_pipe(tracefp, argv[1]);
   if (trace_pipe == NULL) {
     printf("Failed to open trace pipe\n");
     exit(1);
   }
   
+  // Read trace pipe until interupt
   while (1) {
-    fgets(buf, READ_BUF_SIZE, trace_pipe);
-    get_trace_event(buf);
+    // Read the pipe
+    get_trace_event(trace_pipe, &evt);
+    // Do some stuff
+    if (running) {
+      printf("[%lu.%06lu] ", evt.ts.tv_sec, evt.ts.tv_usec);
+      switch (evt.type) {
+        case EVENT_TYPE_ENTER_SENDTO:
+          printf("enter_sendto\n");
+          break;
+        case EVENT_TYPE_EXIT_SENDTO:
+          printf("exit_sendto\n");
+          break;
+        case EVENT_TYPE_ENTER_RECVMSG:
+          printf("enter_recvmsg\n");
+          break;
+        case EVENT_TYPE_EXIT_RECVMSG:
+          printf("exit_recvmsg\n");
+          break;
+      }
+    } else {
+      break;
+    }
   }
 
-  echo_to("tracing_on", "0");
-  echo_to("set_event_pid", "");
-  echo_to("set_event", "");
+  // Clean up a bit
+  release_trace_pipe(trace_pipe, tracefp);
+
+  printf("Done.\n");
 
   return 0;
 }
