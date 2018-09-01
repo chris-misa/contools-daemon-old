@@ -4,7 +4,7 @@
 #include <string.h>
 #include <signal.h>
 
-#include "ftrace.c"
+#include "ftrace_common.c"
 
 static volatile int running = 1;
 
