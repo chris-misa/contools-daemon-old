@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <pcap/pcap.h>
+#include <net/ethernet.h>
+#include <netinet/ether.h>
 
 static volatile int running = 1;
 pcap_t *pcap_hdl;
@@ -25,6 +27,7 @@ pcap_t *get_capture(const char *dev)
   const char filt_txt[] = "icmp";
   struct bpf_program filt_prg;
   int res;
+  int lnk_type;
 
   // Create the handle
   hdl = pcap_create(dev, err);
@@ -57,6 +60,12 @@ pcap_t *get_capture(const char *dev)
   // Free the filter
   pcap_freecode(&filt_prg);
 
+  // Check the data link type
+  lnk_type = pcap_datalink(hdl);
+  if (lnk_type != DLT_EN10MB) {
+    fprintf(stderr, "Warning: non-ethernet data link\n");
+  }
+
   return hdl;
 }
 
@@ -76,22 +85,36 @@ struct packet_event {
   enum packet_type type;
 };
 
-void get_packet_event(pcap_t *hdl, struct packet_event *evt)
+int get_packet_event(pcap_t *hdl, struct packet_event *evt)
 {
-  struct pcap_pkthdr hdr;
+  struct pcap_pkthdr pkt_hdr;
   const u_char *data;
+  struct ether_header *eth_hdr;
 
   evt->type = PACKET_TYPE_NONE;
 
-  data = pcap_next(hdl, &hdr);
+  data = pcap_next(hdl, &pkt_hdr);
+  
+  if (data == NULL) {
+    return 0;
+  }
 
-  evt->ts = hdr.ts;
+  // Copy off the time stamp
+  evt->ts = pkt_hdr.ts;
+
+  eth_hdr = (struct ether_header *)data;
+  printf("src: %s ", ether_ntoa((struct ether_addr *)&eth_hdr->ether_shost));
+  printf("dst: %s ", ether_ntoa((struct ether_addr *)&eth_hdr->ether_dhost));
+  printf("type: %X\n", eth_hdr->ether_type);
+
+  return 1;
 }
 
 
 int main(int argc, char *argv[])
 {
   struct packet_event evt;
+  int res;
 
   if (argc != 2) {
     usage();
@@ -103,9 +126,11 @@ int main(int argc, char *argv[])
   pcap_hdl = get_capture(argv[1]);  
    
   while (1) {
-    get_packet_event(pcap_hdl, &evt);
+    res = get_packet_event(pcap_hdl, &evt);
     if (running) {
-      printf("[%lu.%06lu] got packet!\n", evt.ts.tv_sec, evt.ts.tv_usec);
+      if (res) {
+        printf("[%lu.%06lu] got packet!\n", evt.ts.tv_sec, evt.ts.tv_usec);
+      }
     } else {
       break;
     }
