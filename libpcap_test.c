@@ -4,6 +4,7 @@
 #include <pcap/pcap.h>
 
 static volatile int running = 1;
+pcap_t *pcap_hdl;
 
 void usage()
 {
@@ -13,8 +14,8 @@ void usage()
 void do_exit()
 {
   running = 0;
+  pcap_breakloop(pcap_hdl);
 }
-
 
 // Returns an active, properly setup capture handle
 pcap_t *get_capture(const char *dev)
@@ -23,12 +24,22 @@ pcap_t *get_capture(const char *dev)
   pcap_t *hdl;
   const char filt_txt[] = "icmp";
   struct bpf_program filt_prg;
+  int res;
 
   // Create the handle
   hdl = pcap_create(dev, err);
   if (hdl == NULL) {
     fprintf(stderr, "pcap_create failed for device %s with message: %s\n", dev, err);
     return NULL;
+  }
+
+  // Activate
+  res = pcap_activate(hdl);
+  if (res) {
+    fprintf(stderr, "pcap_activate returned nonzero message: %s\n", pcap_statustostr(res));
+    if (res < 0) {
+      return NULL;
+    }
   }
 
   // Compile the filter
@@ -77,9 +88,9 @@ void get_packet_event(pcap_t *hdl, struct packet_event *evt)
   evt->ts = hdr.ts;
 }
 
+
 int main(int argc, char *argv[])
 {
-  pcap_t *hdl;
   struct packet_event evt;
 
   if (argc != 2) {
@@ -89,14 +100,18 @@ int main(int argc, char *argv[])
 
   signal(SIGINT, do_exit);
 
-  hdl = get_capture(argv[1]);  
+  pcap_hdl = get_capture(argv[1]);  
    
-  while (running) {
-    get_packet_event(hdl, &evt);
-    printf("[%lu.%06lu] got packet!\n", evt.ts.tv_sec, evt.ts.tv_usec);
+  while (1) {
+    get_packet_event(pcap_hdl, &evt);
+    if (running) {
+      printf("[%lu.%06lu] got packet!\n", evt.ts.tv_sec, evt.ts.tv_usec);
+    } else {
+      break;
+    }
   }
 
-  release_capture(hdl);
+  release_capture(pcap_hdl);
 
   printf("Done.\n");
 
