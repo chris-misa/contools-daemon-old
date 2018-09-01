@@ -2,8 +2,13 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <pcap/pcap.h>
+#include <arpa/inet.h>
 #include <net/ethernet.h>
 #include <netinet/ether.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
+
+// #define DEBUG
 
 static volatile int running = 1;
 pcap_t *pcap_hdl;
@@ -77,7 +82,7 @@ void release_capture(pcap_t *hdl)
 enum packet_type {
   PACKET_TYPE_NONE,
   PACKET_TYPE_ECHO_REQUEST,
-  PACKET_TYPE_ECHO_RESPONSE
+  PACKET_TYPE_ECHO_REPLY
 };
 
 struct packet_event {
@@ -90,11 +95,15 @@ int get_packet_event(pcap_t *hdl, struct packet_event *evt)
   struct pcap_pkthdr pkt_hdr;
   const u_char *data;
   struct ether_header *eth_hdr;
+  struct ip *ip_hdr;
+  struct icmp *icmp_hdr;
+  int i;
 
   evt->type = PACKET_TYPE_NONE;
 
   data = pcap_next(hdl, &pkt_hdr);
   
+  // Fail if no data
   if (data == NULL) {
     return 0;
   }
@@ -102,10 +111,47 @@ int get_packet_event(pcap_t *hdl, struct packet_event *evt)
   // Copy off the time stamp
   evt->ts = pkt_hdr.ts;
 
+  // Parse ethernet header
   eth_hdr = (struct ether_header *)data;
-  printf("src: %s ", ether_ntoa((struct ether_addr *)&eth_hdr->ether_shost));
+  // Fail if not IP packet
+  if (ntohs(eth_hdr->ether_type) != ETHERTYPE_IP) {
+    return 0;
+  }
+#ifdef DEBUG
+  printf("ethernet src: %s ", ether_ntoa((struct ether_addr *)&eth_hdr->ether_shost));
   printf("dst: %s ", ether_ntoa((struct ether_addr *)&eth_hdr->ether_dhost));
-  printf("type: %X\n", eth_hdr->ether_type);
+  printf("type: %X\n", ntohs(eth_hdr->ether_type));
+#endif
+
+  // Parse ip header
+  ip_hdr = (struct ip *)(data + sizeof(struct ether_header));
+  // Fail if not ICMP packet
+  if (ip_hdr->ip_p != 1) {
+    return 0;
+  }
+#ifdef DEBUG
+  printf("ip proto: %X ", ip_hdr->ip_p);
+  printf("src: %s ", inet_ntoa(ip_hdr->ip_src));
+  printf("dst: %s\n", inet_ntoa(ip_hdr->ip_dst));
+#endif
+
+  // Parse icmp header
+  icmp_hdr = (struct icmp *)(data + sizeof(struct ether_header) + sizeof(struct ip));
+#ifdef DEBUG
+  printf("icmp message type: %d\n", icmp_hdr->icmp_type);
+#endif
+  switch (icmp_hdr->icmp_type) {
+    case ICMP_ECHO:
+      evt->type = PACKET_TYPE_ECHO_REQUEST;
+      break;
+    case ICMP_ECHOREPLY:
+      evt->type = PACKET_TYPE_ECHO_REPLY;
+      break;
+    default:
+      // Fail if not echo request or reply
+      return 0;
+      break;
+  }
 
   return 1;
 }
@@ -129,7 +175,15 @@ int main(int argc, char *argv[])
     res = get_packet_event(pcap_hdl, &evt);
     if (running) {
       if (res) {
-        printf("[%lu.%06lu] got packet!\n", evt.ts.tv_sec, evt.ts.tv_usec);
+        printf("[%lu.%06lu] ", evt.ts.tv_sec, evt.ts.tv_usec);
+        switch (evt.type) {
+          case PACKET_TYPE_ECHO_REQUEST:
+            printf("echo request\n");
+            break;
+          case PACKET_TYPE_ECHO_REPLY:
+            printf("echo reply\n");
+            break;
+        }
       }
     } else {
       break;
