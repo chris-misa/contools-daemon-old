@@ -27,6 +27,9 @@ pcap_t *get_capture(const char *dev)
     return NULL;
   }
 
+  // Set time stamp type
+  pcap_set_tstamp_type(hdl, PCAP_TSTAMP_HOST);
+
   // Activate
   res = pcap_activate(hdl);
   if (res) {

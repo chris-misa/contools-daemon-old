@@ -14,6 +14,7 @@
 #include "ftrace_common.c"
 #include "libpcap_common.c"
 
+
 static volatile int exiting = 0;
 pcap_t *pcap_hdl;
 
@@ -44,6 +45,16 @@ static inline void tvsub(struct timeval *out, struct timeval *in)
   out->tv_sec -= in->tv_sec;
 }
 
+// out = out + in
+static inline void tvadd(struct timeval *out, struct timeval *in)
+{
+  if ((out->tv_usec += in->tv_usec) > 1000000) {
+    ++out->tv_sec;
+    out->tv_usec -= 1000000;
+  }
+  out->tv_sec += in->tv_sec;
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -52,6 +63,11 @@ int main(int argc, char *argv[])
   const char *ftrace_tracedir = "/sys/kernel/debug/tracing";
   FILE *ftrace_pipe;
   struct trace_event ftrace_evt;
+
+  struct timeval ftrace_offset;
+  ftrace_offset.tv_sec = 0;
+  ftrace_offset.tv_usec = 0;
+
   struct timeval ping_send;
   struct timeval ping_recv;
   struct timeval iface_send;
@@ -85,6 +101,7 @@ int main(int argc, char *argv[])
     do {
       get_trace_event(ftrace_pipe, &ftrace_evt);
     } while (ftrace_evt.type != EVENT_TYPE_ENTER_SENDTO);
+    tvadd(&ftrace_evt.ts, &ftrace_offset);
     printf("[%10lu.%06lu] enter sendto\n",
             ftrace_evt.ts.tv_sec,
             ftrace_evt.ts.tv_usec);
@@ -93,6 +110,7 @@ int main(int argc, char *argv[])
     do {
       get_trace_event(ftrace_pipe, &ftrace_evt);
     } while (ftrace_evt.type != EVENT_TYPE_EXIT_SENDTO);
+    tvadd(&ftrace_evt.ts, &ftrace_offset);
     printf("[%10lu.%06lu] exit sendto\n",
             ftrace_evt.ts.tv_sec,
             ftrace_evt.ts.tv_usec);
@@ -113,6 +131,7 @@ int main(int argc, char *argv[])
     do {
       get_trace_event(ftrace_pipe, &ftrace_evt);
     } while (ftrace_evt.type != EVENT_TYPE_ENTER_RECVMSG);
+    tvadd(&ftrace_evt.ts, &ftrace_offset);
     printf("[%10lu.%06lu] enter recvmsg\n",
             ftrace_evt.ts.tv_sec,
             ftrace_evt.ts.tv_usec);
@@ -121,6 +140,7 @@ int main(int argc, char *argv[])
     do {
       get_trace_event(ftrace_pipe, &ftrace_evt);
     } while (ftrace_evt.type != EVENT_TYPE_EXIT_RECVMSG);
+    tvadd(&ftrace_evt.ts, &ftrace_offset);
     printf("[%10lu.%06lu] exit recvmsg\n",
             ftrace_evt.ts.tv_sec,
             ftrace_evt.ts.tv_usec);
