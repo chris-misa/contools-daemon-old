@@ -23,6 +23,11 @@ int main(int argc, char *argv[])
   const char *tracefp = "/sys/kernel/debug/tracing";
   FILE *trace_pipe;
   struct trace_event evt;
+  struct timeval ftrace_offset;
+
+  get_ftrace_ts_offset(tracefp, &ftrace_offset);
+
+  return 0;
 
   if (argc != 2) {
     usage();

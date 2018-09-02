@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "time_common.h"
 #include "ftrace_common.c"
 #include "libpcap_common.c"
 
@@ -27,32 +28,6 @@ void do_exit()
 {
   exiting = 1;
   pcap_breakloop(pcap_hdl);
-}
-
-/*
- * tvsub --
- *  Subtract 2 timeval structs:  out = out - in.  Out is assumed to
- * be >= in.
- *
- * Borrowed from ping.h
- */
-static inline void tvsub(struct timeval *out, struct timeval *in)
-{
-  if ((out->tv_usec -= in->tv_usec) < 0) {
-    --out->tv_sec;
-    out->tv_usec += 1000000;
-  }
-  out->tv_sec -= in->tv_sec;
-}
-
-// out = out + in
-static inline void tvadd(struct timeval *out, struct timeval *in)
-{
-  if ((out->tv_usec += in->tv_usec) > 1000000) {
-    ++out->tv_sec;
-    out->tv_usec -= 1000000;
-  }
-  out->tv_sec += in->tv_sec;
 }
 
 
@@ -79,6 +54,11 @@ int main(int argc, char *argv[])
   }
 
   signal(SIGINT, do_exit);
+
+  // Get ftrace offset
+  get_ftrace_ts_offset(ftrace_tracedir, &ftrace_offset);
+  printf("Got ftrace offset: %lu.%06lu\n", ftrace_offset.tv_sec,
+                                           ftrace_offset.tv_usec);
 
   // Set up libpcap
   pcap_hdl = get_capture(argv[1]);
