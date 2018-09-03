@@ -110,11 +110,11 @@ void parse_trace_event(char *str, struct trace_event *evt)
 FILE *get_trace_pipe(const char *debug_fs_path, const char *pid)
 {
   chdir(debug_fs_path);
-  echo_to("current_tracer", "nop");
+  // assume some things are already set from call to
+  // get_ftrace_ts_offset!
+  // Specifically: trace_clock, tracing_on, current_tracer
   echo_to("set_event", "syscalls:sys_enter_sendto syscalls:sys_exit_sendto syscalls:sys_enter_recvmsg syscalls:sys_exit_recvmsg");
   echo_to("set_event_pid", pid);
-  echo_to("trace_clock","global");
-  echo_to("tracing_on", "1");
 
   return fopen("trace_pipe","r");
 }
@@ -169,8 +169,7 @@ int get_ftrace_ts_offset(const char *debug_fs_path, struct timeval *offset)
   struct timeval system_time;
   struct trace_event evt;
 
-  
-  long long unsigned int usec_sum = 0;
+  double sum = 0.0;
 
   // Get pid into a string for writing to debugfs
   sprintf(pid, "%d", getpid());
@@ -181,6 +180,8 @@ int get_ftrace_ts_offset(const char *debug_fs_path, struct timeval *offset)
   
   // Set up ftrace
   chdir(debug_fs_path);
+  echo_to("trace", "");
+  echo_to("trace_pipe", "");
   echo_to("current_tracer", "nop");
   echo_to("set_event", "syscalls:sys_enter_select syscalls:sys_exit_select");
   echo_to("set_event_pid", pid);
@@ -211,7 +212,8 @@ int get_ftrace_ts_offset(const char *debug_fs_path, struct timeval *offset)
     *offset = system_time;
     tvsub(offset, &evt.ts);
 
-    usec_sum += offset->tv_usec;
+    sum += (double)offset->tv_sec + 
+           ((double)offset->tv_usec) / 1000000;
     
     // printf("System time: %lu.%06lu\n",
     //                      system_time.tv_sec,
@@ -225,8 +227,9 @@ int get_ftrace_ts_offset(const char *debug_fs_path, struct timeval *offset)
   }
 
   // Assuming the variance is only at the microsecond level
-  usec_sum /= ntests;
-  offset->tv_usec = usec_sum;
+  sum /= (double)ntests;
+  offset->tv_sec = (long int)sum;
+  offset->tv_usec = (long int)((sum - (int)sum) * 1000000);
 
   // Clean up ftrace
   fclose(tp);

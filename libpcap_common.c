@@ -28,7 +28,7 @@ pcap_t *get_capture(const char *dev)
   }
 
   // Set time stamp type
-  pcap_set_tstamp_type(hdl, PCAP_TSTAMP_HOST);
+  pcap_set_tstamp_type(hdl, PCAP_TSTAMP_HOST_LOWPREC);
 
   // Activate
   res = pcap_activate(hdl);
@@ -80,6 +80,7 @@ struct packet_event {
   enum packet_type type;
 };
 
+// Returns nonzero if successfully captured icmp echo event
 int get_packet_event(pcap_t *hdl, struct packet_event *evt)
 {
   struct pcap_pkthdr pkt_hdr;
