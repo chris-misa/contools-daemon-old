@@ -28,7 +28,7 @@ mkdir $DATE_TAG
 cd $DATE_TAG
 
 # Start ping container as service
-docker run --rm -itd \
+docker run -itd \
   --name=$PING_CONTAINER_NAME \
   --entrypoint=/bin/bash \
   $PING_CONTAINER_IMAGE
@@ -71,4 +71,9 @@ kill -INT $MONITOR_PID
 echo "  killed monitor"
 
 $PAUSE_CMD
+
+docker stop $PING_CONTAINER_NAME
+docker rm $PING_CONTAINER_NAME
+echo $B Stopped container $B
+
 echo Done.

@@ -64,7 +64,7 @@ void echo_event_finish(struct echo_event *evt)
 
 
   // Dump info to stdout
-  fprintf(stdout, "Finished seq: %d, outbound: %lu.%06lu, inbound: %lu.%06lu\n",
+  fprintf(stdout, "seq: %d, outbound: %lu.%06lu, inbound: %lu.%06lu\n",
     evt->seq,
     evt->outbound.dev[1].tv_sec, evt->outbound.dev[1].tv_usec,
     evt->inbound.dev[0].tv_sec, evt->inbound.dev[0].tv_usec);
