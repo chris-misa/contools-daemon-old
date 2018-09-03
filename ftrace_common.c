@@ -230,10 +230,8 @@ int get_ftrace_ts_offset(const char *debug_fs_path, struct timeval *offset)
 
   // Clean up ftrace
   fclose(tp);
-  echo_to("tracing_on", "0");
   echo_to("set_event_pid", "");
   echo_to("set_event", "");
-  echo_to("trace", "");
   
   return 0;
 }

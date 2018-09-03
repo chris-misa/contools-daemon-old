@@ -55,17 +55,17 @@ int main(int argc, char *argv[])
 
   signal(SIGINT, do_exit);
 
-  // Get ftrace offset
-  get_ftrace_ts_offset(ftrace_tracedir, &ftrace_offset);
-  printf("Got ftrace offset: %lu.%06lu\n", ftrace_offset.tv_sec,
-                                           ftrace_offset.tv_usec);
-
   // Set up libpcap
   pcap_hdl = get_capture(argv[1]);
   if (pcap_hdl == NULL) {
     printf("Failed to open pcap handle\n");
     exit(1);
   }
+
+  // Get ftrace offset
+  get_ftrace_ts_offset(ftrace_tracedir, &ftrace_offset);
+  printf("Got ftrace offset: %lu.%06lu\n", ftrace_offset.tv_sec,
+                                           ftrace_offset.tv_usec);
 
   // Set up ftrace
   ftrace_pipe = get_trace_pipe(ftrace_tracedir, argv[2]);
@@ -145,6 +145,7 @@ int main(int argc, char *argv[])
   
   // Clean up
   release_capture(pcap_hdl);
+  release_trace_pipe(ftrace_pipe, ftrace_tracedir);
 
   printf("Done.\n");
 
