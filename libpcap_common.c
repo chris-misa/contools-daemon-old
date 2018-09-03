@@ -146,3 +146,25 @@ int get_packet_event(pcap_t *hdl, struct packet_event *evt)
 
   return 1;
 }
+
+// Read an icmp event from the capture and fill in the given header struct and time stamp
+// Returns nonzero on success, zero on failure
+int get_icmp_packet(pcap_t *hdl, struct icmp *icmp_hdr, struct timeval *tstamp)
+{
+  struct pcap_pkthdr pcap_hdr;
+  const u_char *data;
+  
+  // Pull packet off iface
+  data = pcap_next(hdl, &pcap_hdr);
+  if (data == NULL) {
+    return 0;
+  }
+
+  // Write the time stamp
+  *tstamp = pcap_hdr.ts;
+
+  // Assuming the icmp filter is on so we don't bother with other headers, just copy icmp data
+  memcpy(icmp_hdr, data + sizeof(struct ether_header) + sizeof(struct ip), sizeof(struct icmp));
+  
+  return 1;
+}
