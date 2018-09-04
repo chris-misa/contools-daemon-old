@@ -1,3 +1,9 @@
+//
+// Libpcap inter-interface latency monitor
+//
+// Bugs: need to check icmp id field: current version breaks if multiple pings are running
+//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -7,6 +13,8 @@
 
 #include "time_common.h"
 #include "libpcap_common.c"
+
+// #define DEBUG
 
 #define ECHO_EVENT_TABLE_SIZE 128
 
