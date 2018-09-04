@@ -19,6 +19,8 @@ pcap_t *get_capture(const char *dev)
   struct bpf_program filt_prg;
   int res;
   int lnk_type;
+  int caplen = sizeof(struct ether_header) + sizeof(struct ip) + sizeof(struct icmp);
+  int timeout_ms = 1000;
 
   // Create the handle
   hdl = pcap_create(dev, err);
@@ -29,6 +31,10 @@ pcap_t *get_capture(const char *dev)
 
   // Set time stamp type
   pcap_set_tstamp_type(hdl, PCAP_TSTAMP_HOST_LOWPREC);
+  // Set snap length to only capture through icmp header
+  pcap_set_snaplen(hdl, caplen);
+  // Set timeout
+  pcap_set_timeout(hdl, timeout_ms);
 
   // Activate
   res = pcap_activate(hdl);
@@ -38,6 +44,10 @@ pcap_t *get_capture(const char *dev)
       return NULL;
     }
   }
+
+  fprintf(stdout, "Activated capture on %s with:\n", dev);
+  fprintf(stdout, "  snaplen: %d\n", caplen);
+  fprintf(stdout, "  timeout: %d ms\n", timeout_ms);
 
   // Compile the filter
   if (pcap_compile(hdl, &filt_prg, filt_txt, 0, PCAP_NETMASK_UNKNOWN)) {
