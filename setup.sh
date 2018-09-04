@@ -36,3 +36,4 @@ add-apt-repository \
 apt-get update
 apt-get install -y docker-ce
 
+make
