@@ -8,7 +8,7 @@ B="----------------"
 
 TARGET_IPV4="10.10.1.2"
 
-PING_ARGS="-i 1.0 -s 56 -c 10"
+PING_ARGS="-i 1.0 -s 56 -c 1000"
 
 NATIVE_PING_CMD="$(pwd)/iputils/ping"
 CONTAINER_PING_CMD="/iputils/ping"
