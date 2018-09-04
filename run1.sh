@@ -6,11 +6,11 @@
 B="----------------"
 
 
-TARGET_IPV4="172.217.14.238"
+TARGET_IPV4="10.10.1.2"
 
 PING_ARGS="-i 1.0 -s 56 -c 10"
 
-NATIVE_PING_CMD="$HOME/Dep/iputils/ping"
+NATIVE_PING_CMD="$(pwd)/iputils/ping"
 CONTAINER_PING_CMD="/iputils/ping"
 
 PING_CONTAINER_IMAGE="chrismisa/contools:ping"
@@ -19,7 +19,7 @@ PING_CONTAINER_NAME="ping-container"
 PAUSE_CMD="sleep 5"
 
 IFACE_1="docker0"
-IFACE_2="wlp2s0"
+IFACE_2="eno1d1"
 LATENCY_CMD="$(pwd)/iface_diff"
 
 DATE_TAG=`date +%Y%m%d%H%M%S`
@@ -48,7 +48,7 @@ $PAUSE_CMD
 #
 echo $B Native control $B
 $NATIVE_PING_CMD $PING_ARGS $TARGET_IPV4 \
-  > native_${TARGET_IPV4}.ping
+  > native_control_${TARGET_IPV4}.ping
 
 $PAUSE_CMD
 
