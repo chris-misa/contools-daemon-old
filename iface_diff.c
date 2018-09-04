@@ -79,96 +79,80 @@ struct dev_cap {
   int dev_id;
 };
 
+void pcap_callback(u_char *user, const struct pcap_pkthdr *hdr, const u_char *data)
+{
+  struct dev_cap *dc = (struct dev_cap *)user;
+  struct icmp *icmp_hdr;
+  struct echo_event *evt;
+  struct timeval *tstamp_target = NULL;
+  unsigned char flag = 0;
+
+  // Assume the packet filter is only giving us icmp packets and go right for icmp header
+  icmp_hdr = (struct icmp *)(data + sizeof(struct ether_header) + sizeof(struct ip));
+
+  // Get a pointer into the echo event hash table for this sequence number
+  evt = echo_event_table + echo_event_hash_seq(ntohs(icmp_hdr->icmp_hun.ih_idseq.icd_seq));
+
+  // Add sequence to table on first access
+  if (!evt->flags) {
+    evt->seq = ntohs(icmp_hdr->icmp_hun.ih_idseq.icd_seq);
+  }
+
+  // Branch on message type
+  switch (icmp_hdr->icmp_type) {
+    case ICMP_ECHO:
+      // Branch on device
+      if (dc->dev_id == 0) {
+        tstamp_target = &evt->outbound.dev[0];
+        flag = ECHO_EVENT_DEV1_OUTBOUND_FLAG;
+      } else {
+        tstamp_target = &evt->outbound.dev[1];
+        flag = ECHO_EVENT_DEV2_OUTBOUND_FLAG;
+      }
+      break;
+    case ICMP_ECHOREPLY:
+      // Branch on device
+      if (dc->dev_id == 0) {
+        tstamp_target = &evt->inbound.dev[0];
+        flag = ECHO_EVENT_DEV1_INBOUND_FLAG;
+      } else {
+        tstamp_target = &evt->inbound.dev[1];
+        flag = ECHO_EVENT_DEV2_INBOUND_FLAG;
+      }
+      break;
+    default:
+      // Bail now if it's not an echo message
+      return;
+  }
+  
+#ifdef DEBUG
+  // Dump some info to stdout
+  fprintf(stdout, "[%lu.%06lu] id: %d seq: %d dev: %d\n",
+      hdr->ts.tv_sec,
+      hdr->ts.tv_usec,
+      ntohs(icmp_hdr->icmp_hun.ih_idseq.icd_id),
+      ntohs(icmp_hdr->icmp_hun.ih_idseq.icd_seq),
+      dc->dev_id);
+#endif
+
+  // Atomically update the echo event and check if it is finished
+  pthread_mutex_lock(&evt->flags_lock);
+  *tstamp_target = hdr->ts;
+  evt->flags |= flag;
+  if (evt->flags == ECHO_EVENT_READY) {
+    pthread_mutex_unlock(&evt->flags_lock);
+    echo_event_finish(evt);
+  } else {
+    pthread_mutex_unlock(&evt->flags_lock);
+  }
+}
+
 void *follow_capture(void *cap)
 {
   struct dev_cap *dc = (struct dev_cap *)cap;
-  const char *echo_request_str = "echo request";
-  const char *echo_reply_str = "echo reply";
-  const char *unknown_str = "unknown type";
-  const char **msg = &unknown_str;
-
-  struct icmp icmp_hdr;
-  struct timeval tstamp;
-  struct timeval *tstamp_target;
-  unsigned char flag;
-
-
-  struct echo_event *evt = NULL;
 
   while (running) {
-    if (get_icmp_packet(dc->hdl, &icmp_hdr, &tstamp)) {
-
-      // Get a pointer into the echo events table
-      evt = echo_event_table 
-        + echo_event_hash_seq(ntohs(icmp_hdr.icmp_hun.ih_idseq.icd_seq));
-
-      // Reset loop variables
-      tstamp_target = NULL;
-      flag = 0;
-
-      // Add sequence on first access
-      if (!evt->flags) {
-        evt->seq = ntohs(icmp_hdr.icmp_hun.ih_idseq.icd_seq);
-      }
-
-      // Branch on message type
-      switch (icmp_hdr.icmp_type) {
-        case ICMP_ECHO:
-          msg = &echo_request_str;
-
-          // Branch on device
-          if (dc->dev_id == 0) {
-            tstamp_target = &evt->outbound.dev[0];
-            flag = ECHO_EVENT_DEV1_OUTBOUND_FLAG;
-          } else {
-            tstamp_target = &evt->outbound.dev[1];
-            flag = ECHO_EVENT_DEV2_OUTBOUND_FLAG;
-          }
-          break;
-        case ICMP_ECHOREPLY:
-          msg = &echo_reply_str;
-
-          // Branch on device
-          if (dc->dev_id == 0) {
-            tstamp_target = &evt->inbound.dev[0];
-            flag = ECHO_EVENT_DEV1_INBOUND_FLAG;
-          } else {
-            tstamp_target = &evt->inbound.dev[1];
-            flag = ECHO_EVENT_DEV2_INBOUND_FLAG;
-          }
-          break;
-        default:
-          msg = &unknown_str;
-          break;
-      }
-      
-#ifdef DEBUG
-      // Dump some info to stdout
-      fprintf(stdout, "[%lu.%06lu] %s id: %d seq: %d dev: %d\n",
-          tstamp.tv_sec,
-          tstamp.tv_usec,
-          *msg,
-          ntohs(icmp_hdr.icmp_hun.ih_idseq.icd_id),
-          ntohs(icmp_hdr.icmp_hun.ih_idseq.icd_seq),
-          dc->dev_id);
-#endif
-
-      // Only update if one of above cases happened
-      // incase we captured a non-echo icmp message
-      if (tstamp_target) {
-  
-        // Atomically update the echo event and check if it is finished
-        pthread_mutex_lock(&evt->flags_lock);
-        *tstamp_target = tstamp;
-        evt->flags |= flag;
-        if (evt->flags == ECHO_EVENT_READY) {
-          pthread_mutex_unlock(&evt->flags_lock);
-          echo_event_finish(evt);
-        } else {
-          pthread_mutex_unlock(&evt->flags_lock);
-        }
-      }
-    }
+    pcap_loop(dc->hdl, -1, pcap_callback, (u_char *)cap);
   }
 }
 
