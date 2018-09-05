@@ -25,9 +25,8 @@ int main(int argc, char *argv[])
   struct trace_event evt;
   struct timeval ftrace_offset;
 
+  // this call also sets up trace dir things which we need
   get_ftrace_ts_offset(tracefp, &ftrace_offset);
-
-  return 0;
 
   if (argc != 2) {
     usage();
