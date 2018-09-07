@@ -17,4 +17,11 @@ FILE *get_trace_pipe(const char *debug_fs_path, const char *target_events, const
 // Closes the pipe and turns things off in tracing filesystem
 void release_trace_pipe(FILE *tp, const char *debug_fs_path);
 
+// Parse ftrace report strings into a struct
+struct trace_event {
+  ...
+};
+void parse_trace_line(const char *line_str, struct trace_event *evt);
+
+
 #endif
