@@ -12,7 +12,7 @@ static volatile int running = 1;
 
 void usage()
 {
-  fprintf(stdout, "Usage: latency . . .\n");
+  fprintf(stdout, "Usage: latency pid_list\n");
 }
 
 void do_exit()
@@ -24,10 +24,15 @@ int main(int argc, char *argv[])
 {
   FILE *tp;
   char buf[TRACE_BUFFER_SIZE];
+
+  if (argc != 2) {
+    usage();
+    return 1;
+  }
   
   signal(SIGINT, do_exit);
 
-  tp = get_trace_pipe(TRACING_FS_PATH, "net:*", NULL);
+  tp = get_trace_pipe(TRACING_FS_PATH, "net:*", argv[1]);
 
   if (!tp) {
     fprintf(stderr, "Failed to open trace pipe\n");

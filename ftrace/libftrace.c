@@ -37,7 +37,7 @@ FILE *get_trace_pipe(const char *debug_fs_path, const char *target_events, const
   }
   echo_to("trace_pipe", "");
   echo_to("current_tracer", "nop");
-  echo_to("trace_clock", "x86-tsc");
+  echo_to("trace_clock", "global");
   if (target_events) {
     echo_to("set_event", target_events);
   }
