@@ -6,12 +6,12 @@
 B="----------------"
 
 
-TARGET_IPV4="10.0.0.1"
+TARGET_IPV4="10.10.1.2"
 
 PING_ARGS="-i 1.0 -s 56"
 
-# NATIVE_PING_CMD="$(pwd)/iputils/ping"
-NATIVE_PING_CMD="${HOME}/Dep/iputils/ping"
+NATIVE_PING_CMD="$(pwd)/iputils/ping"
+# NATIVE_PING_CMD="${HOME}/Dep/iputils/ping"
 CONTAINER_PING_CMD="/iputils/ping"
 
 PING_CONTAINER_IMAGE="chrismisa/contools:ping"
@@ -19,7 +19,7 @@ PING_CONTAINER_NAME="ping-container"
 
 PAUSE_CMD="sleep 5"
 
-PING_PAUSE_CMD="sleep 10"
+PING_PAUSE_CMD="sleep 1000"
 
 MONITOR_CMD="$(pwd)/ftrace_test"
 
@@ -55,7 +55,7 @@ echo "  pinging. . ."
 
 $PAUSE_CMD
 
-PING_PID=`ps -e | grep ping | cut -d ' ' -f 1`
+PING_PID=`ps -e | grep ping | sed -E 's/ *([0-9]+) .*/\1/'`
 echo "  got ping pid: $PING_PID"
 
 $PING_PAUSE_CMD
@@ -76,7 +76,7 @@ echo "  pinging. . ."
 
 $PAUSE_CMD
 
-PING_PID=`ps -e | grep ping | cut -d ' ' -f 1`
+PING_PID=`ps -e | grep ping | sed -E 's/ *([0-9]+) .*/\1/'`
 echo "  got ping pid: $PING_PID"
 
 $PING_PAUSE_CMD
@@ -97,7 +97,7 @@ echo "  native pinging. . ."
 
 $PAUSE_CMD
 
-PING_PID=`ps -e | grep ping | cut -d ' ' -f 1`
+PING_PID=`ps -e | grep ping | sed -E 's/ *([0-9]+) .*/\1/'`
 echo "  got native ping pid $PING_PID"
 
 $PAUSE_CMD
@@ -129,7 +129,7 @@ echo "  container pinging. . ."
 
 $PAUSE_CMD
 
-PING_PID=`ps -e | grep ping | cut -d ' ' -f 1`
+PING_PID=`ps -e | grep ping | sed -E 's/ *([0-9]+) .*/\1/'`
 echo "  got container ping pid $PING_PID"
 
 $PAUSE_CMD
