@@ -5,21 +5,7 @@
 #include <sys/sysinfo.h>
 #include <pthread.h>
 
-/*******************************************
-
-This seems to work fine for text-based, per cpu
-
-For raw files we need to have a better reading
-strategy: fgets reads till eol which won't work
-arbitrary reads will block till their buffer fills
-
-We need either an event delimiter character hooked up
-into something like fgets or to know the exact size of
-each event ahead of time or non-blocking reads or something. . .
-
-*******************************************/
-
-#define BUF_SIZE 1000
+#define BUF_SIZE 0x1000
 
 static int exiting = 0;
 

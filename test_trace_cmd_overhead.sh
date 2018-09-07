@@ -2,6 +2,7 @@
 
 #
 # Test of ftrace_test overhead
+# as implemented in trace-cmd
 #
 B="----------------"
 
@@ -19,9 +20,9 @@ PING_CONTAINER_NAME="ping-container"
 
 PAUSE_CMD="sleep 5"
 
-PING_PAUSE_CMD="sleep 1000"
+PING_PAUSE_CMD="sleep 10"
 
-MONITOR_CMD="$(pwd)/ftrace/latency"
+MONITOR_CMD="trace-cmd record -e net:*"
 
 DATE_TAG=`date +%Y%m%d%H%M%S`
 META_DATA="Metadata"
@@ -102,8 +103,8 @@ echo "  got native ping pid $PING_PID"
 
 $PAUSE_CMD
 
-$MONITOR_CMD $PING_PID \
-  > native_monitored_${TARGET_IPV4}.trace &
+$MONITOR_CMD -P $PING_PID \
+  -o native_monitored_${TARGET_IPV4}.dat &
 MONITOR_PID=$!
 echo "  monitor running with pid: ${MONITOR_PID}"
 
@@ -134,8 +135,8 @@ echo "  got container ping pid $PING_PID"
 
 $PAUSE_CMD
 
-$MONITOR_CMD $PING_PID \
-  > container_monitored_${TARGET_IPV4}.trace &
+$MONITOR_CMD -P $PING_PID \
+  -o container_monitored_${TARGET_IPV4}.dat &
 MONITOR_PID=$!
 echo "  monitor running with pid: ${MONITOR_PID}"
 
