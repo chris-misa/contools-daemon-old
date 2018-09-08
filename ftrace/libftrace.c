@@ -116,6 +116,7 @@ parse_timestamp(char **str, struct timeval *time)
 }
 
 // Parse the given field as a string
+// Fields have form 'field_name=result'
 void
 parse_field(char **str, const char *field_name, char **result)
 {
@@ -151,6 +152,28 @@ find_field_name:
   }
 }
 
+// Get the function name assuming it is terminated by a colon
+// and categorize it by type
+void
+parse_function_name(char **str, enum event_type *et)
+{
+  int len = 0;
+
+  while ((*str)[len] != '\0'
+      && (*str)[len] != ':'
+      && (*str)[len] != '(') {
+    len++;
+  }
+  
+  if (!strncmp(*str, EVENT_START_SEND_FUNC_NAME, len)) {
+    *et = EVENT_TYPE_START_SEND;
+  } else if (!strncmp(*str, EVENT_FINISH_SEND_FUNC_NAME, len)) {
+    *et = EVENT_TYPE_FINISH_SEND;
+  }
+
+  (*str) += len;
+}
+
 // Parse a string into a newly allocated trace_event struct
 // Returns NULL if anything goes wrong
 struct trace_event *
@@ -163,15 +186,23 @@ trace_event_from_str(char *str)
     return NULL;
   }
 
+  evt->type = EVENT_TYPE_UNKNOWN;
+  evt->dev = NULL;
+  evt->skbaddr = NULL;
+
   parse_skip_whitespace(&str);
-  parse_skip_nonwhitespace(&str); // Proc id an number
+  parse_skip_nonwhitespace(&str);           // Command and pid
   parse_skip_whitespace(&str);
-  parse_skip_nonwhitespace(&str); // CPU
+  parse_skip_nonwhitespace(&str);           // CPU
   parse_skip_whitespace(&str);
-  parse_skip_nonwhitespace(&str); // Flags
+  parse_skip_nonwhitespace(&str);           // Flags
   parse_skip_whitespace(&str);
   parse_timestamp(&str, &evt->ts);          // Time stamp
-  // get Function name here
+  parse_skip_whitespace(&str);
+  parse_function_name(&str, &evt->type);    // Event type
+
+  // We must conditionally parse dev and skbaddr fields is from net: system
+
   parse_field(&str, "dev", &evt->dev); // Device
   parse_field(&str, "skbaddr", &evt->skbaddr); // skb address
   
@@ -188,4 +219,29 @@ trace_event_free(struct trace_event *evt)
     if (evt->skbaddr) free(evt->skbaddr);
     free(evt);
   }
+}
+
+// Print the given event to stdout for debuging
+void
+trace_event_print(struct trace_event *evt)
+{
+  fprintf(stdout, "[%lu.%06lu] ", evt->ts.tv_sec, evt->ts.tv_usec);
+  switch (evt->type) {
+    case EVENT_TYPE_UNKNOWN:
+      fprintf(stdout, "unknown");
+      break;
+    case EVENT_TYPE_START_SEND:
+      fprintf(stdout, "start send");
+      break;
+    case EVENT_TYPE_FINISH_SEND:
+      fprintf(stdout, "finish send");
+      break;
+    case EVENT_TYPE_START_RECV:
+      fprintf(stdout, "start recv");
+      break;
+    case EVENT_TYPE_FINISH_RECV:
+      fprintf(stdout, "finish recv");
+      break;
+  }
+  fprintf(stdout, "\n");
 }
