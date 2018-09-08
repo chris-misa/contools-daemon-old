@@ -18,10 +18,24 @@ FILE *get_trace_pipe(const char *debug_fs_path, const char *target_events, const
 void release_trace_pipe(FILE *tp, const char *debug_fs_path);
 
 // Parse ftrace report strings into a struct
-struct trace_event {
-  ...
+enum event_type {
+  NET_DEV_QUEUE,
+  NET_DEV_XMIT,
+  NETIF_RECEIVE_SKB_ENTRY,
+  NETIF_RECEIVE_SKB
 };
-void parse_trace_line(const char *line_str, struct trace_event *evt);
 
+struct trace_event {
+  enum event_type type;
+  struct timeval ts;
+  char *dev;
+  char *skbaddr;
+};
+
+// Parse a string into a newly allocated trace_event struct
+struct trace_event * trace_event_from_str(char *str);
+
+// Free an allocated trace_event struct
+void trace_event_free(struct trace_event *evt);
 
 #endif

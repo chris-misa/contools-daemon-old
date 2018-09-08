@@ -1,4 +1,4 @@
-all: iface_diff show_clock_opts ftrace_test ftrace_raw
+all: iface_diff show_clock_opts ftrace_test ftrace_raw tests
 
 iface_diff: iface_diff.c time_common.h libpcap_common.c
 	gcc -O3 -o iface_diff iface_diff.c -lpcap -pthread

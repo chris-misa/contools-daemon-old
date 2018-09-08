@@ -22,8 +22,9 @@ void do_exit()
 
 int main(int argc, char *argv[])
 {
-  FILE *tp;
+  FILE *tp = NULL;
   char buf[TRACE_BUFFER_SIZE];
+  int nbytes = 0;
 
   if (argc != 2) {
     usage();
@@ -40,8 +41,12 @@ int main(int argc, char *argv[])
   }
 
   while (running) {
-    fgets(buf, TRACE_BUFFER_SIZE, tp);
-    fprintf(stdout, "%s\n", buf);
+    // fgets(buf, TRACE_BUFFER_SIZE, tp);
+    nbytes = fread(buf, 1, TRACE_BUFFER_SIZE - 1, tp);
+    if (nbytes > 0) {
+      buf[nbytes] = '\0';
+      fprintf(stdout, "%s\n", buf);
+    }
   }
 
   release_trace_pipe(tp, TRACING_FS_PATH);
