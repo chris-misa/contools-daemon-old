@@ -8,10 +8,6 @@
 #ifndef LIBFTRACE_H
 #define LIBFTRACE_H
 
-#define EVENT_START_SEND_FUNC_NAME "net_dev_queue"
-#define EVENT_FINISH_SEND_FUNC_NAME "net_dev_xmit"
-
-
 // Get an open file pointer to the trace_pipe
 // and set things up in the tracing filesystem
 // If anything goes wrong, returns NULL
@@ -24,10 +20,8 @@ void release_trace_pipe(FILE *tp, const char *debug_fs_path);
 // experimental purposes but the general framework stays the same
 enum event_type {
   EVENT_TYPE_UNKNOWN,
-  EVENT_TYPE_START_SEND,
-  EVENT_TYPE_FINISH_SEND,
-  EVENT_TYPE_START_RECV,
-  EVENT_TYPE_FINISH_RECV
+  EVENT_TYPE_NET_DEV_QUEUE,
+  EVENT_TYPE_NETIF_RECEIVE_SKB
 };
 
 // This struct might need to be extended for correlation purposes later
@@ -35,14 +29,15 @@ struct trace_event {
   enum event_type type;
   struct timeval ts;
   char *dev;
+  int dev_len;
   char *skbaddr;
+  int skbaddr_len;
 };
 
-// Parse a string into a newly allocated trace_event struct
-struct trace_event *trace_event_from_str(char *str);
-
-// Free an allocated trace_event struct
-void trace_event_free(struct trace_event *evt);
+// Parses the str into a trace_event struct
+// The trave_event is a shallow representaiont:
+// all strings in the trace_event struct still point to the original.
+void trace_event_parse_str(char *str, struct trace_event *evt);
 
 // Print the given event to stdout for debuging
 void trace_event_print(struct trace_event *evt);
