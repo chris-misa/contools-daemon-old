@@ -23,13 +23,6 @@ void do_exit()
   running = 0;
 }
 
-// Read a trace_event structure from the given pipe
-// Caller is reponsible for freeing the pointer.
-struct trace_event *
-read_trace_event_from_pipe(FILE *pipe)
-{
-}
-
 int main(int argc, char *argv[])
 {
   FILE *tp = NULL;
@@ -69,40 +62,38 @@ int main(int argc, char *argv[])
   }
 
   while (running) {
+    // Read the next line from the trace pipe
     if (fgets(buf, TRACE_BUFFER_SIZE, tp) != NULL && running) {
+      // If there's data, parse it
       trace_event_parse_str(buf, &evt);
-
-// debug
-//    trace_event_print(&evt);
-// end debug
-
+      // Branch on event type
       switch (evt.type) {
         case EVENT_TYPE_NET_DEV_QUEUE:
           if (!strncmp(inner_iface, evt.dev, evt.dev_len)) {
-            // fprintf(stdout, "Got send inner event\n");
+            // Remember skbaddr for when we see it later
             memcpy(send_skbaddr, evt.skbaddr, evt.skbaddr_len);
             start_send_time = evt.ts;
           } else if (!strncmp(outer_iface, evt.dev, evt.dev_len)
                   && !strncmp(send_skbaddr, evt.skbaddr, evt.skbaddr_len)) {
-            // fprintf(stdout, "Got send outer event\n");
+            // skbaddr matched, this is same packet on outer iface!
             finish_send_time = evt.ts;
             tvsub(&finish_send_time, &start_send_time);
-            fprintf(stdout, "Got send latency: %lu.%06lu\n", finish_send_time.tv_sec,
-                                                             finish_send_time.tv_usec);
+            fprintf(stdout, "send latency: %lu.%06lu\n", finish_send_time.tv_sec,
+                                                         finish_send_time.tv_usec);
           }
           break;
         case EVENT_TYPE_NETIF_RECEIVE_SKB:
           if (!strncmp(outer_iface, evt.dev, evt.dev_len)) {
-            // fprintf(stdout, "Got recv outer event\n");
+            // Remember skbaddr for when we see it later
             memcpy(recv_skbaddr, evt.skbaddr, evt.skbaddr_len);
             start_recv_time = evt.ts;
           } else if (!strncmp(inner_iface, evt.dev, evt.dev_len)
                   && !strncmp(recv_skbaddr, evt.skbaddr, evt.skbaddr_len)) {
-            // fprintf(stdout, "Got recv inner event\n");
+            // skbaddr matched, this is same packet on inner iface!
             finish_recv_time = evt.ts;
             tvsub(&finish_recv_time, &start_recv_time);
-            fprintf(stdout, "Got recv latency: %lu.%06lu\n", finish_recv_time.tv_sec,
-                                                             finish_recv_time.tv_usec);
+            fprintf(stdout, "recv latency: %lu.%06lu\n", finish_recv_time.tv_sec,
+                                                         finish_recv_time.tv_usec);
           }
           break;
       }
