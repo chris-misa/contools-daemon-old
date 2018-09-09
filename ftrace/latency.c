@@ -23,6 +23,20 @@ void do_exit()
   running = 0;
 }
 
+void print_stats(long long unsigned int send_sum,
+                 unsigned int send_num,
+                 long long unsigned int recv_sum,
+                 unsigned int recv_num)
+{
+  long long unsigned int send_mean = send_sum / send_num;
+  long long unsigned int recv_mean = recv_sum / recv_num;
+  fprintf(stdout, "\nLatency stats:\n");
+  fprintf(stdout, "send mean: %f ms\n", (float)send_mean / 1000.0);
+  fprintf(stdout, "recv mean: %f ms\n", (float)recv_mean / 1000.0);
+  fprintf(stdout, "rtt  mean: %f ms\n",
+      (float)(send_mean + recv_mean) / 1000.0);
+}
+
 int main(int argc, char *argv[])
 {
   FILE *tp = NULL;
@@ -35,15 +49,17 @@ int main(int argc, char *argv[])
   char buf[TRACE_BUFFER_SIZE];
   struct trace_event evt;
 
-  struct timeval start_send_time;
   char send_skbaddr[SKBADDR_BUFFER_SIZE];
+  struct timeval start_send_time;
   struct timeval finish_send_time;
-  int send_state = 0;
+  long long unsigned int send_sum = 0;
+  unsigned int send_num = 0;
 
-  struct timeval start_recv_time;
   char recv_skbaddr[SKBADDR_BUFFER_SIZE];
+  struct timeval start_recv_time;
   struct timeval finish_recv_time;
-  int recv_state = 0;
+  long long unsigned int recv_sum = 0;
+  unsigned int recv_num = 0;
 
   if (argc != 3) {
     usage();
@@ -80,6 +96,8 @@ int main(int argc, char *argv[])
             tvsub(&finish_send_time, &start_send_time);
             fprintf(stdout, "send latency: %lu.%06lu\n", finish_send_time.tv_sec,
                                                          finish_send_time.tv_usec);
+            send_sum += finish_send_time.tv_sec * 1000000 + finish_send_time.tv_usec;
+            send_num++;
           }
           break;
         case EVENT_TYPE_NETIF_RECEIVE_SKB:
@@ -94,6 +112,8 @@ int main(int argc, char *argv[])
             tvsub(&finish_recv_time, &start_recv_time);
             fprintf(stdout, "recv latency: %lu.%06lu\n", finish_recv_time.tv_sec,
                                                          finish_recv_time.tv_usec);
+            recv_sum += finish_recv_time.tv_sec * 1000000 + finish_recv_time.tv_usec;
+            recv_num++;
           }
           break;
       }
@@ -101,6 +121,8 @@ int main(int argc, char *argv[])
   }
 
   release_trace_pipe(tp, TRACING_FS_PATH);
+
+  print_stats(send_sum, send_num, recv_sum, recv_num);
 
   fprintf(stdout, "Done.\n");
 
