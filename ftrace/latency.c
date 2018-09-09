@@ -28,8 +28,21 @@ void print_stats(long long unsigned int send_sum,
                  long long unsigned int recv_sum,
                  unsigned int recv_num)
 {
-  long long unsigned int send_mean = send_sum / send_num;
-  long long unsigned int recv_mean = recv_sum / recv_num;
+  long long unsigned int send_mean;
+  long long unsigned int recv_mean;
+
+  if (send_num) {
+    send_mean = send_sum / send_num;
+  } else {
+    send_mean = 0;
+  }
+
+  if (recv_num) {
+    recv_mean = recv_sum / recv_num;
+  } else {
+    recv_mean = 0;
+  }
+
   fprintf(stdout, "\nLatency stats:\n");
   fprintf(stdout, "send mean: %f ms\n", (float)send_mean / 1000.0);
   fprintf(stdout, "recv mean: %f ms\n", (float)recv_mean / 1000.0);
