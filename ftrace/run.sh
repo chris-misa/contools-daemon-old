@@ -8,7 +8,7 @@ B="----------------"
 
 TARGET_IPV4="10.10.1.2"
 
-PING_ARGS="-i 1.0 -s 56"
+PING_ARGS="-D -i 1.0 -s 56"
 
 NATIVE_PING_CMD="/local/repository/iputils/ping"
 # NATIVE_PING_CMD="${HOME}/Dep/iputils/ping"
@@ -19,7 +19,7 @@ PING_CONTAINER_NAME="ping-container"
 
 PAUSE_CMD="sleep 5"
 
-PING_PAUSE_CMD="sleep 10"
+PING_PAUSE_CMD="sleep 60"
 
 MONITOR_CMD="$(pwd)/latency eth0 eno1d1"
 
@@ -123,7 +123,7 @@ $PAUSE_CMD
 echo $B Container monitored $B
 
 $MONITOR_CMD \
-  > container_monitored_${TARGET_IPV4}.trace &
+  > container_monitored_${TARGET_IPV4}.latency &
 MONITOR_PID=$!
 echo "  monitor running with pid: ${MONITOR_PID}"
 

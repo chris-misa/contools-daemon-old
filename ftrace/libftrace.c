@@ -48,7 +48,7 @@ get_trace_pipe(const char *debug_fs_path, const char *target_events, const char 
   }
   echo_to("trace_pipe", "");
   echo_to("current_tracer", "nop");
-  echo_to("trace_clock", "global");
+  echo_to("trace_clock", "mono_raw");
   if (target_events) {
     echo_to("set_event", target_events);
   }

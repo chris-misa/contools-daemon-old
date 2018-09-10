@@ -97,10 +97,12 @@ int main(int argc, char *argv[])
       trace_event_parse_str(buf, &evt);
       // Branch on event type
       switch (evt.type) {
+        // Handle packets being sent
         case EVENT_TYPE_NET_DEV_QUEUE:
           if (!strncmp(inner_iface, evt.dev, evt.dev_len)) {
             // Remember skbaddr for when we see it later
             memcpy(send_skbaddr, evt.skbaddr, evt.skbaddr_len);
+            send_skbaddr[evt.skbaddr_len] = '\0';
             start_send_time = evt.ts;
           } else if (!strncmp(outer_iface, evt.dev, evt.dev_len)
                   && !strncmp(send_skbaddr, evt.skbaddr, evt.skbaddr_len)) {
@@ -113,20 +115,28 @@ int main(int argc, char *argv[])
             send_num++;
           }
           break;
+	// Handle packets being received
         case EVENT_TYPE_NETIF_RECEIVE_SKB:
           if (!strncmp(outer_iface, evt.dev, evt.dev_len)) {
             // Remember skbaddr for when we see it later
             memcpy(recv_skbaddr, evt.skbaddr, evt.skbaddr_len);
+            recv_skbaddr[evt.skbaddr_len] = '\0';
             start_recv_time = evt.ts;
           } else if (!strncmp(inner_iface, evt.dev, evt.dev_len)
                   && !strncmp(recv_skbaddr, evt.skbaddr, evt.skbaddr_len)) {
             // skbaddr matched, this is same packet on inner iface!
             finish_recv_time = evt.ts;
             tvsub(&finish_recv_time, &start_recv_time);
-            fprintf(stdout, "recv latency: %lu.%06lu\n", finish_recv_time.tv_sec,
-                                                         finish_recv_time.tv_usec);
-            recv_sum += finish_recv_time.tv_sec * 1000000 + finish_recv_time.tv_usec;
-            recv_num++;
+            // Filter out outliers
+            if (finish_recv_time.tv_usec < 200) {
+              fprintf(stdout, "recv latency: %lu.%06lu\n", finish_recv_time.tv_sec,
+                                                           finish_recv_time.tv_usec);
+              recv_sum += finish_recv_time.tv_sec * 1000000 + finish_recv_time.tv_usec;
+              recv_num++;
+            } else {
+              fprintf(stdout, "discarded recv: %lu.%06lu\n", finish_recv_time.tv_sec,
+                                                             finish_recv_time.tv_usec);
+            }
           }
           break;
       }
