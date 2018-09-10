@@ -149,9 +149,8 @@ find_field_name:
 }
 
 // Get the function name assuming it is terminated by a colon
-// and categorize it by type
 void
-parse_function_name(char **str, enum event_type *et)
+parse_function_name(char **str, char **result, int *result_len)
 {
   int len = 0;
 
@@ -161,11 +160,8 @@ parse_function_name(char **str, enum event_type *et)
     len++;
   }
   
-  if (!strncmp(*str, "net_dev_queue", len)) {
-    *et = EVENT_TYPE_NET_DEV_QUEUE;
-  } else if (!strncmp(*str, "netif_receive_skb", len)) {
-    *et = EVENT_TYPE_NETIF_RECEIVE_SKB;
-  }
+  *result = *str;
+  *result_len = len;
 
   (*str) += len;
 }
@@ -175,7 +171,8 @@ parse_function_name(char **str, enum event_type *et)
 void
 trace_event_parse_str(char *str, struct trace_event *evt)
 {
-  evt->type = EVENT_TYPE_UNKNOWN;
+  evt->func_name = NULL;
+  evt->func_name_len = 0;
   evt->dev = NULL;
   evt->dev_len = 0;
   evt->skbaddr = NULL;
@@ -190,10 +187,11 @@ trace_event_parse_str(char *str, struct trace_event *evt)
   parse_skip_whitespace(&str);
   parse_timestamp(&str, &evt->ts);          // Time stamp
   parse_skip_whitespace(&str);
-  parse_function_name(&str, &evt->type);    // Event type
+  parse_function_name(&str,
+                      &evt->func_name,
+                      &evt->func_name_len);    // Event type
 
-  // We must conditionally parse dev and skbaddr fields is from net: system
-
+  // Assume events are from net:* subsystem and have these fields
   parse_field(&str, "dev", &evt->dev, &evt->dev_len); // Device
   parse_field(&str, "skbaddr", &evt->skbaddr, &evt->skbaddr_len); // skb address
 }
@@ -203,19 +201,8 @@ void
 trace_event_print(struct trace_event *evt)
 {
   fprintf(stdout, "[%lu.%06lu] ", evt->ts.tv_sec, evt->ts.tv_usec);
-  switch (evt->type) {
-    case EVENT_TYPE_UNKNOWN:
-      fprintf(stdout, "unknown");
-      break;
-    case EVENT_TYPE_NET_DEV_QUEUE:
-      fprintf(stdout, "net_dev_queue");
-      break;
-    case EVENT_TYPE_NETIF_RECEIVE_SKB:
-      fprintf(stdout, "netif_receive_skb");
-      break;
-  }
+  fprintf(stdout, "%s", evt->func_name);
   // Broken by the non-terminicity of these tokens. . .
+  // actual will dump the rest of the buffer which is still useful
   // fprintf(stdout, " dev: %s skbaddr: %s\n", evt->dev, evt->skbaddr);
-  fprintf(stdout, " %s", evt->dev);
-  fprintf(stdout, "\n");
 }
