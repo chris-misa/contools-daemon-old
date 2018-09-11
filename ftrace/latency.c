@@ -248,12 +248,18 @@ int main(int argc, char *argv[])
         // Got a inbound event on inner dev and the skbaddr matches
         finish_recv_time = evt.ts;
         tvsub(&finish_recv_time, &start_recv_time);
-        fprintf(stdout, "recv latency: %lu.%06lu\n",
-                finish_recv_time.tv_sec,
-                finish_recv_time.tv_usec);
-        recv_sum += finish_recv_time.tv_sec * 1000000
-                  + finish_recv_time.tv_usec;
-        recv_num++;
+        if (finish_recv_time.tv_usec < 1000) {
+          fprintf(stdout, "recv latency: %lu.%06lu\n",
+                  finish_recv_time.tv_sec,
+                  finish_recv_time.tv_usec);
+          recv_sum += finish_recv_time.tv_sec * 1000000
+                    + finish_recv_time.tv_usec;
+          recv_num++;
+        } else {
+          fprintf(stdout, "discarded recv: %lu.%06lu\n",
+                  finish_recv_time.tv_sec,
+                  finish_recv_time.tv_usec);
+        }
 
       } else
       if (!strncmp(out_inner_func, evt.func_name, evt.func_name_len)
@@ -269,12 +275,19 @@ int main(int argc, char *argv[])
         // Got a outbound event on outer dev and the skbaddr matches
         finish_send_time = evt.ts;
         tvsub(&finish_send_time, &start_send_time);
-        fprintf(stdout, "send latency: %lu.%06lu\n",
-                finish_send_time.tv_sec,
-                finish_send_time.tv_usec);
-        send_sum += finish_send_time.tv_sec * 1000000
-                  + finish_send_time.tv_usec;
-        send_num++;
+        if (finish_send_time.tv_usec < 1000) {
+          fprintf(stdout, "send latency: %lu.%06lu\n",
+                  finish_send_time.tv_sec,
+                  finish_send_time.tv_usec);
+          send_sum += finish_send_time.tv_sec * 1000000
+                    + finish_send_time.tv_usec;
+          send_num++;
+        } else {
+          fprintf(stdout, "discarded send: %lu.%06lu\n",
+                  finish_send_time.tv_sec,
+                  finish_send_time.tv_usec);
+        }
+      
       }
     }
   }

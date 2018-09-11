@@ -6,12 +6,12 @@
 B="----------------"
 
 
-TARGET_IPV4="10.10.1.2"
+TARGET_IPV4="10.0.0.1"
 
 PING_ARGS="-D -i 1.0 -s 56"
 
-NATIVE_PING_CMD="/local/repository/iputils/ping"
-# NATIVE_PING_CMD="${HOME}/Dep/iputils/ping"
+# NATIVE_PING_CMD="/local/repository/iputils/ping"
+NATIVE_PING_CMD="${HOME}/Dep/iputils/ping"
 CONTAINER_PING_CMD="/iputils/ping"
 
 PING_CONTAINER_IMAGE="chrismisa/contools:ping"
@@ -19,9 +19,9 @@ PING_CONTAINER_NAME="ping-container"
 
 PAUSE_CMD="sleep 5"
 
-PING_PAUSE_CMD="sleep 60"
+PING_PAUSE_CMD="sleep 100"
 
-MONITOR_CMD="$(pwd)/latency eth0 eno1d1"
+MONITOR_CMD="$(pwd)/latency $(pwd)/latency.conf"
 
 DATE_TAG=`date +%Y%m%d%H%M%S`
 META_DATA="Metadata"
