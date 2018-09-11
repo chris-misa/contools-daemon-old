@@ -3,6 +3,15 @@
 #
 # Test of ftrace/latency
 #
+# Apparently docker installation automatically sets up apparmor
+# in newer versions. To jetisonit:
+# Check status: sudo aa-status
+# sudo systemctl disable apparmor.service --now
+# sudo service apparmor teardown
+# sudo aa-status
+#
+# (from https://forums.docker.com/t/can-not-stop-docker-container-permission-denied-error/41142/5)
+#
 B="----------------"
 
 
@@ -10,8 +19,8 @@ TARGET_IPV4="10.0.0.1"
 
 PING_ARGS="-D -i 1.0 -s 56"
 
-# NATIVE_PING_CMD="/local/repository/iputils/ping"
-NATIVE_PING_CMD="${HOME}/Dep/iputils/ping"
+# NATIVE_PING_CMD="taskset 0x1 ${HOME}/contools-daemon/iputils/ping"
+NATIVE_PING_CMD="taskset 0x1 ${HOME}/Dep/iputils/ping"
 CONTAINER_PING_CMD="/iputils/ping"
 
 PING_CONTAINER_IMAGE="chrismisa/contools:ping"
@@ -39,6 +48,7 @@ echo "sudo lshw -> $(sudo lshw)" >> $META_DATA
 docker run -itd \
   --name=$PING_CONTAINER_NAME \
   --entrypoint=/bin/bash \
+  --cpuset-cpus="0" \
   $PING_CONTAINER_IMAGE
 echo $B Started $PING_CONTAINER_NAME $B
 
@@ -72,7 +82,7 @@ echo $B Container control $B
 docker exec $PING_CONTAINER_NAME \
   $CONTAINER_PING_CMD $PING_ARGS $TARGET_IPV4 \
   > container_control_${TARGET_IPV4}.ping &
-echo "  pinging. . ."
+echo "  pinging. . . "
 
 $PAUSE_CMD
 

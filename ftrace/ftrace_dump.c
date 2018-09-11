@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
 
   signal(SIGINT, do_exit);
 
-  tp = get_trace_pipe(TRACING_FS_PATH, events, NULL);
+  tp = get_trace_pipe(TRACING_FS_PATH, events, NULL, NULL);
 
   if (!tp) {
     fprintf(stderr, "Failed to open trace pipe\n");
