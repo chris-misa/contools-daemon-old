@@ -19,7 +19,8 @@ TARGET_IPV4="10.10.1.2"
 
 PING_ARGS="-D -i 1.0 -s 56"
 
-NATIVE_PING_CMD="taskset 0x1 ${HOME}/contools-daemon/iputils/ping"
+# NATIVE_PING_CMD="taskset 0x1 ${HOME}/contools-daemon/iputils/ping"
+NATIVE_PING_CMD="${HOME}/contools-daemon/iputils/ping"
 # NATIVE_PING_CMD="${HOME}/Dep/iputils/ping"
 CONTAINER_PING_CMD="/iputils/ping"
 
@@ -48,7 +49,6 @@ echo "sudo lshw -> $(sudo lshw)" >> $META_DATA
 docker run -itd \
   --name=$PING_CONTAINER_NAME \
   --entrypoint=/bin/bash \
-  --cpuset-cpus="0" \
   $PING_CONTAINER_IMAGE
 echo $B Started $PING_CONTAINER_NAME $B
 
