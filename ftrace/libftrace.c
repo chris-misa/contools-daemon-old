@@ -34,7 +34,10 @@ echo_to(const char *file, const char *data)
 // and set things up in the tracing filesystem
 // If anything goes wrong, returns NULL and resets things
 FILE *
-get_trace_pipe(const char *debug_fs_path, const char *target_events, const char *pid)
+get_trace_pipe(const char *debug_fs_path,
+               const char *target_events,
+	       const char *pid,
+	       const char *trace_clock)
 {
   FILE *tp = NULL;
   if (chdir(debug_fs_path)) {
@@ -46,9 +49,11 @@ get_trace_pipe(const char *debug_fs_path, const char *target_events, const char 
     fprintf(stderr, "Failed to write in tracing fs.\n");
     return NULL;
   }
-  echo_to("trace_pipe", "");
+  echo_to("trace", "");
   echo_to("current_tracer", "nop");
-  echo_to("trace_clock", "mono_raw");
+  if (trace_clock) {
+    echo_to("trace_clock", trace_clock);
+  }
   if (target_events) {
     echo_to("set_event", target_events);
   }
