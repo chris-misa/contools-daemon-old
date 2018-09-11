@@ -21,7 +21,6 @@ PING_ARGS="-D -i 1.0 -s 56"
 
 # NATIVE_PING_CMD="taskset 0x1 ${HOME}/contools-daemon/iputils/ping"
 NATIVE_PING_CMD="${HOME}/contools-daemon/iputils/ping"
-# NATIVE_PING_CMD="${HOME}/Dep/iputils/ping"
 CONTAINER_PING_CMD="/iputils/ping"
 
 PING_CONTAINER_IMAGE="chrismisa/contools:ping"
